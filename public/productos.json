@@ -1,1 +1,10 @@
+# Instala pandas
+pip install pandas openpyxl
 
+# Convierte el Excel a JSON
+python excel_to_json.py
+
+# Sube el archivo generado a GitHub
+git add public/productos.json
+git commit -m "Agregar productos.json"
+git push
