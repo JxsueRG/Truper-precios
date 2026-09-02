@@ -15,7 +15,6 @@ def limpiar_precio(valor):
     if isinstance(valor, (int, float)):
         return float(valor)
     if isinstance(valor, str):
-        # Eliminar caracteres no numéricos excepto punto y coma
         valor_limpio = re.sub(r'[^\d.,-]', '', valor)
         valor_limpio = valor_limpio.replace(',', '.')
         if not valor_limpio or valor_limpio == '-':
@@ -26,6 +25,11 @@ def limpiar_precio(valor):
             return 0
     return 0
 
+def obtener_precio(row, columna):
+    """Obtiene precio de una columna, si es 0 busca en otras"""
+    valor = limpiar_precio(row.get(columna))
+    return valor
+
 for index, row in df.iterrows():
     try:
         codigo = str(row.get('código', '')).strip() if pd.notna(row.get('código')) else ''
@@ -35,17 +39,45 @@ for index, row in df.iterrows():
         
         descripcion = str(row.get('descripción', '')).strip() if pd.notna(row.get('descripción')) else ''
         
-        # Obtener SOLO los precios con IVA
-        precio_publico = limpiar_precio(row.get('precio público con IVA'))
-        precio_mayoreo = limpiar_precio(row.get('precio mayoreo con IVA'))
-        precio_distribuidor = limpiar_precio(row.get('precio distribuidor con IVA'))
+        # Obtener TODOS los precios disponibles
+        precio_publico = obtener_precio(row, 'precio público con IVA')
         
-        # Si no hay precio público, omitir (o puedes usar distribuidor como base)
-        if precio_publico == 0 and precio_distribuidor == 0:
+        # Si el precio público es 0, intentar obtener de otras columnas
+        if precio_publico == 0:
+            # Intentar con otros precios que puedan tener valor
+            precio_publico = obtener_precio(row, 'precio')
+            if precio_publico == 0:
+                precio_publico = obtener_precio(row, 'precio público sin IVA')
+            if precio_publico == 0:
+                precio_publico = obtener_precio(row, 'precio mayoreo con IVA')
+            if precio_publico == 0:
+                precio_publico = obtener_precio(row, 'precio distribuidor con IVA')
+        
+        # Si después de todo sigue siendo 0, usamos el precio de la columna 'precio'
+        if precio_publico == 0:
+            precio_publico = limpiar_precio(row.get('precio'))
+        
+        # Si aún es 0, omitimos el producto
+        if precio_publico == 0:
             errores += 1
             continue
         
-        # Calcular precios adicionales solo si hay distribuidor
+        # Obtener otros precios
+        precio_mayoreo = obtener_precio(row, 'precio mayoreo con IVA')
+        precio_distribuidor = obtener_precio(row, 'precio distribuidor con IVA')
+        precio_publico_sin_iva = obtener_precio(row, 'precio público sin IVA')
+        precio_mayoreo_sin_iva = obtener_precio(row, 'precio mayoreo sin IVA')
+        precio_distribuidor_sin_iva = obtener_precio(row, 'precio distribuidor sin IVA')
+        precio_minimo = obtener_precio(row, 'precio mínimo de venta')
+        
+        # Si el precio mayoreo es 0, usar una referencia
+        if precio_mayoreo == 0:
+            precio_mayoreo = round(precio_publico * 0.85, 2)  # 15% de descuento aprox
+        
+        if precio_distribuidor == 0:
+            precio_distribuidor = round(precio_publico * 0.70, 2)  # 30% de descuento aprox
+        
+        # Calcular precios adicionales
         precio_dist_30 = round(precio_distribuidor * 1.30, 2) if precio_distribuidor > 0 else 0
         precio_dist_40 = round(precio_distribuidor * 1.40, 2) if precio_distribuidor > 0 else 0
         
@@ -63,10 +95,14 @@ for index, row in df.iterrows():
             "familia": familia,
             "descripcionFamilia": desc_familia,
             "ean": ean,
-            # Solo precios con IVA
+            # Precios
             "precioPublico": precio_publico,
             "precioMayoreo": precio_mayoreo,
             "precioDistribuidor": precio_distribuidor,
+            "precioPublicoSinIVA": precio_publico_sin_iva,
+            "precioMayoreoSinIVA": precio_mayoreo_sin_iva,
+            "precioDistribuidorSinIVA": precio_distribuidor_sin_iva,
+            "precioMinimo": precio_minimo,
             "precioDist30": precio_dist_30,
             "precioDist40": precio_dist_40
         }
