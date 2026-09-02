@@ -118,37 +118,43 @@ export default function Home() {
                 padding: '20px',
                 borderRadius: '12px'
               }}>
-                <img
-                  src={`https://via.placeholder.com/200x200/1a1a2e/ffffff?text=${producto.codigo}`}
-                  alt={producto.descripcion}
-                  style={{ maxWidth: '200px', maxHeight: '200px' }}
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/200x200/ff6b6b/ffffff?text=Sin+Imagen';
-                  }}
-                />
+                <div style={{
+                  width: '200px',
+                  height: '200px',
+                  margin: '0 auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#e8e8e8',
+                  borderRadius: '12px'
+                }}>
+                  <span style={{ fontSize: '60px' }}>📦</span>
+                </div>
                 <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
                   🔍 Busca en Google: 
-                  <a href={`https://www.google.com/search?q=${encodeURIComponent(producto.descripcion + ' Truper')}&tbm=isch`} 
+                  <a href={`https://www.google.com/search?q=${encodeURIComponent(producto.descripcion + ' ' + producto.marca)}&tbm=isch`} 
                      target="_blank" rel="noopener noreferrer"
                      style={{ color: '#667eea', marginLeft: '5px' }}>
-                    Ver imagen en Google
+                    Ver imagen
                   </a>
                 </p>
               </div>
 
               {/* Información del producto */}
               <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px' }}>
-                <h2 style={{ marginTop: 0 }}>{producto.descripcion}</h2>
-                <p><strong>Código:</strong> {producto.codigo}</p>
-                <p><strong>Clave:</strong> {producto.clave || 'N/A'}</p>
-                <p><strong>Marca:</strong> {producto.marca || 'TRUPER'}</p>
-                <p><strong>Familia:</strong> {producto.familia || 'N/A'}</p>
-                {producto.ean && <p><strong>EAN:</strong> {producto.ean}</p>}
+                <h2 style={{ marginTop: 0, fontSize: '18px' }}>{producto.descripcion}</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 20px', marginTop: '10px' }}>
+                  <div><strong>Código:</strong> {producto.codigo}</div>
+                  <div><strong>Clave:</strong> {producto.clave || 'N/A'}</div>
+                  <div><strong>Marca:</strong> {producto.marca || 'TRUPER'}</div>
+                  <div><strong>Familia:</strong> {producto.familia || 'N/A'}</div>
+                  {producto.ean && <div><strong>EAN:</strong> {producto.ean}</div>}
+                </div>
 
                 <hr style={{ margin: '15px 0' }} />
 
-                <h3>💰 Precios (con IVA)</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <h3 style={{ marginBottom: '10px' }}>💰 Precios (con IVA)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 30px' }}>
                   <div><strong>Público:</strong></div>
                   <div style={{ color: '#27ae60', fontWeight: 'bold' }}>{formatearPrecio(producto.precioPublico)}</div>
 
