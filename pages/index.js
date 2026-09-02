@@ -147,15 +147,15 @@ export default function Home() {
 
                 <hr style={{ margin: '15px 0' }} />
 
-                <h3>💰 Precios</h3>
+                <h3>💰 Precios (con IVA)</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div><strong>Público (IVA incluido):</strong></div>
+                  <div><strong>Público:</strong></div>
                   <div style={{ color: '#27ae60', fontWeight: 'bold' }}>{formatearPrecio(producto.precioPublico)}</div>
 
-                  <div><strong>Mayoreo (IVA incluido):</strong></div>
+                  <div><strong>Mayoreo:</strong></div>
                   <div>{formatearPrecio(producto.precioMayoreo)}</div>
 
-                  <div><strong>Distribuidor (IVA incluido):</strong></div>
+                  <div><strong>Distribuidor:</strong></div>
                   <div>{formatearPrecio(producto.precioDistribuidor)}</div>
 
                   <div><strong>Distribuidor +30%:</strong></div>
@@ -163,18 +163,6 @@ export default function Home() {
 
                   <div><strong>Distribuidor +40%:</strong></div>
                   <div style={{ color: '#e74c3c' }}>{formatearPrecio(producto.precioDist40)}</div>
-
-                  <div><strong>Público (sin IVA):</strong></div>
-                  <div>{formatearPrecio(producto.precioPublicoSinIVA)}</div>
-
-                  <div><strong>Mayoreo (sin IVA):</strong></div>
-                  <div>{formatearPrecio(producto.precioMayoreoSinIVA)}</div>
-
-                  <div><strong>Distribuidor (sin IVA):</strong></div>
-                  <div>{formatearPrecio(producto.precioDistribuidorSinIVA)}</div>
-
-                  <div><strong>Precio mínimo:</strong></div>
-                  <div>{formatearPrecio(producto.precioMinimo)}</div>
                 </div>
               </div>
             </div>
