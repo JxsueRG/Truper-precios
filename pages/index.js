@@ -5,7 +5,6 @@ export default function Home() {
   const [producto, setProducto] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
-  const [imgIndex, setImgIndex] = useState(0); // Controla de dónde saca la imagen
 
   const buscarProducto = async (e) => {
     e.preventDefault();
@@ -17,7 +16,6 @@ export default function Home() {
     setCargando(true);
     setError('');
     setProducto(null);
-    setImgIndex(0); // Reiniciamos la imagen al buscar uno nuevo
 
     try {
       const response = await fetch(`/api/productos?codigo=${codigo.trim()}`);
@@ -35,7 +33,7 @@ export default function Home() {
     }
   };
 
-  // --- CÁLCULOS INTELIGENTES DE PRECIOS ---
+  // --- CÁLCULOS DE PRECIOS ---
   let distribuidorIva = 0;
   let mayoreoIva = 0;
   let menudeoIva = 0;
@@ -46,38 +44,22 @@ export default function Home() {
   if (producto) {
     const iva = 1.16;
     
-    // Función infalible: Busca la palabra en las columnas del Excel sin importar mayúsculas
-    const extraerPrecio = (palabra) => {
-      const key = Object.keys(producto).find(k => k.toLowerCase().includes(palabra));
-      if (key && producto[key]) {
-        // Limpia el texto por si el Excel trae "$" o comas (ej. "$ 1,500.00")
-        const valorLimpio = producto[key].toString().replace(/[^0-9.]/g, '');
-        return parseFloat(valorLimpio) || 0;
-      }
-      return 0;
-    };
+    // Aquí usamos "precio" porque en tu código original ese era el que sí funcionaba
+    const precioDist = producto.precio || producto.distribuidor || 0; 
+    
+    // Agregué varias opciones comunes, pero si siguen en 0, revisaremos la caja de diagnóstico
+    const precioMay = producto.mayoreo || producto.precio_mayoreo || 0;
+    const precioMen = producto.menudeo || producto.precio_menudeo || 0;
+    const precioPub = producto.publico || producto.precio_publico || 0;
 
-    // Extraemos los precios exactos
-    const precioDist = extraerPrecio('distribuidor') || extraerPrecio('precio') || 0;
-    const precioMay = extraerPrecio('mayoreo');
-    const precioMen = extraerPrecio('menudeo');
-    const precioPub = extraerPrecio('publico') || extraerPrecio('público');
-
-    // Hacemos las sumas
     distribuidorIva = precioDist * iva;
     mayoreoIva = precioMay * iva;
     menudeoIva = precioMen * iva;
-    publico = precioPub; // Normalmente el precio al público ya incluye IVA
+    publico = precioPub;
 
     distMas30 = distribuidorIva * 1.30;
     distMas40 = distribuidorIva * 1.40;
   }
-
-  // --- RUTAS DE IMÁGENES DE TRUPER ---
-  // 1. La del banco de contenido digital que pediste
-  const imgBancoDigital = producto ? `https://www.truper.com/banco-contenido-digital/mx/v/img_banco_digital/1500/${producto.codigo}.jpg` : '';
-  // 2. Ruta alternativa del catálogo
-  const imgCatalogo = producto ? `https://www.truper.com/catvig/img/d/${producto.clave}.jpg` : '';
 
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
@@ -86,7 +68,7 @@ export default function Home() {
       <form onSubmit={buscarProducto} style={{ margin: '20px 0', display: 'flex', justifyContent: 'center' }}>
         <input
           type="text"
-          placeholder="Código del producto (Ej. 43920)"
+          placeholder="Código del producto (Ej. 43333)"
           value={codigo}
           onChange={(e) => setCodigo(e.target.value)}
           style={{
@@ -129,28 +111,42 @@ export default function Home() {
           alignItems: 'center'
         }}>
           
-          {/* IMAGEN CON FALLBACK AUTOMÁTICO */}
-          <img 
-            src={imgIndex === 0 ? imgBancoDigital : imgCatalogo} 
-            alt={producto.descripcion || 'Producto'} 
-            onError={(e) => { 
-              if (imgIndex === 0) {
-                setImgIndex(1); // Si falla la del Banco Digital, intenta la del Catálogo
-              } else {
-                e.target.src = 'https://via.placeholder.com/200?text=Imagen+No+Disponible'; 
-              }
-            }}
-            style={{ width: '250px', height: '250px', objectFit: 'contain', marginBottom: '20px' }} 
-          />
+          {/* IMAGEN Y ENLACE AL BANCO DIGITAL */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
+            <img 
+              src={`https://www.truper.com/catvig/img/d/${producto.clave?.trim()}.jpg`} 
+              alt={producto.descripcion} 
+              onError={(e) => { e.target.src = 'https://via.placeholder.com/200?text=Foto+Bloqueada+por+Truper'; }}
+              style={{ width: '200px', height: '200px', objectFit: 'contain', marginBottom: '15px' }} 
+            />
+            
+            {/* ESTE ES EL BOTÓN QUE TE MANDA AL BANCO DIGITAL QUE PEDISTE */}
+            <a 
+              href={`https://www.truper.com/banco-contenido-digital/mx/v/?q=${producto.codigo}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{
+                background: '#ff6b6b',
+                color: 'white',
+                padding: '10px 20px',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: 'bold',
+                fontSize: '14px'
+              }}
+            >
+              📥 Ver/Descargar en Banco Digital Truper
+            </a>
+          </div>
 
           <h2 style={{ textAlign: 'center', margin: '0 0 10px 0', color: '#333' }}>
-            {producto.descripcion || producto.Descripcion}
+            {producto.descripcion}
           </h2>
           
           <div style={{ display: 'flex', gap: '20px', color: '#666', marginBottom: '20px' }}>
-            <p style={{ margin: 0 }}><strong>Código:</strong> {producto.codigo || producto.Codigo}</p>
-            <p style={{ margin: 0 }}><strong>Clave:</strong> {producto.clave || producto.Clave || 'N/A'}</p>
-            <p style={{ margin: 0 }}><strong>Marca:</strong> {producto.marca || producto.Marca || 'Truper'}</p>
+            <p style={{ margin: 0 }}><strong>Código:</strong> {producto.codigo}</p>
+            <p style={{ margin: 0 }}><strong>Clave:</strong> {producto.clave || 'N/A'}</p>
+            <p style={{ margin: 0 }}><strong>Marca:</strong> {producto.marca || 'Hermex'}</p>
           </div>
 
           {/* LISTA DE PRECIOS */}
@@ -181,6 +177,16 @@ export default function Home() {
               </li>
             </ul>
           </div>
+
+          {/* CAJA DE DIAGNÓSTICO (¡Muy Importante!) */}
+          <details style={{ marginTop: '30px', width: '100%', background: '#fff3cd', padding: '10px', borderRadius: '8px', border: '1px solid #ffeeba' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: '#856404' }}>
+              🛠️ Clic aquí para ver los datos crudos (Diagnóstico)
+            </summary>
+            <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', color: '#333', marginTop: '10px' }}>
+              {JSON.stringify(producto, null, 2)}
+            </pre>
+          </details>
 
         </div>
       )}
