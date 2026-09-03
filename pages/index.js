@@ -6,21 +6,6 @@ export default function Home() {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
 
-  // Función para calcular todos los precios
-  const calcularPrecios = (precioBase) => {
-    const iva = 0.16;
-    const distribuidor = precioBase * (1 + iva);
-
-    return {
-      distribuidor: distribuidor,
-      mayoreo: distribuidor * 1.30,
-      menudeo: distribuidor * 1.40,
-      publico: distribuidor * 1.50,
-      mas40: distribuidor * 1.40,
-      mas30: distribuidor * 1.30,
-    };
-  };
-
   const buscarProducto = async (e) => {
     e.preventDefault();
     if (!codigo.trim()) {
@@ -37,9 +22,7 @@ export default function Home() {
       const data = await response.json();
 
       if (response.ok) {
-        // Agregar los precios calculados al producto
-        const precios = calcularPrecios(data.precio);
-        setProducto({ ...data, precios });
+        setProducto(data);
       } else {
         setError(data.error || 'Producto no encontrado');
       }
@@ -50,96 +33,143 @@ export default function Home() {
     }
   };
 
+  const formatearPrecio = (precio) => {
+    if (!precio || precio === 0) return 'N/D';
+    return '$' + precio.toFixed(2);
+  };
+
   return (
-    <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', fontFamily: 'sans-serif' }}>
-      <h1 style={{ color: '#2c3e50' }}>🏪 Ferretería - Truper 2026</h1>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+      padding: '20px'
+    }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        <div style={{
+          background: 'rgba(255,255,255,0.05)',
+          padding: '30px',
+          borderRadius: '16px',
+          textAlign: 'center',
+          marginBottom: '20px'
+        }}>
+          <h1 style={{ color: 'white', fontSize: '2.5rem' }}>🏪 Ferretería</h1>
+          <p style={{ color: 'rgba(255,255,255,0.8)' }}>Consulta de precios Truper 2026</p>
+        </div>
 
-      <form onSubmit={buscarProducto} style={{ margin: '20px 0' }}>
-        <input
-          type="text"
-          placeholder="Código del producto"
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
-          style={{
-            padding: '12px',
-            fontSize: '16px',
-            border: '2px solid #ddd',
-            borderRadius: '8px',
-            width: '70%',
-            marginRight: '10px',
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            padding: '12px 30px',
-            background: '#667eea',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            cursor: 'pointer',
-          }}
-          disabled={cargando}
-        >
-          {cargando ? 'Buscando...' : '🔍 Buscar'}
-        </button>
-      </form>
-
-      {error && <div style={{ color: 'red', padding: '10px', background: '#fee', borderRadius: '6px' }}>{error}</div>}
-
-      {producto && (
         <div style={{
           background: 'white',
-          padding: '20px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '20px',
+          padding: '25px',
+          borderRadius: '16px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
         }}>
-          {/* Imagen del producto (placeholder) */}
-          <div style={{ flex: '0 0 200px' }}>
-            <img
-              src={`https://via.placeholder.com/200x200?text=${producto.codigo}`}
-              alt={producto.descripcion}
-              style={{ width: '100%', borderRadius: '8px', background: '#f0f0f0' }}
+          <form onSubmit={buscarProducto} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Código del producto (ej: 100048)"
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '14px 18px',
+                fontSize: '16px',
+                border: '2px solid #e8e8e8',
+                borderRadius: '10px',
+                minWidth: '200px'
+              }}
             />
-          </div>
+            <button
+              type="submit"
+              style={{
+                padding: '14px 35px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+              disabled={cargando}
+            >
+              {cargando ? 'Buscando...' : '🔍 Buscar'}
+            </button>
+          </form>
 
-          {/* Datos del producto */}
-          <div style={{ flex: '1' }}>
-            <h2 style={{ marginTop: 0 }}>{producto.descripcion}</h2>
-            <p><strong>Código:</strong> {producto.codigo}</p>
-            <p><strong>Clave:</strong> {producto.clave || 'N/A'}</p>
-            <p><strong>Marca:</strong> {producto.marca || 'TRUPER'}</p>
-            <p><strong>Familia:</strong> {producto.familia || 'N/A'}</p>
-
-            <h3 style={{ marginTop: '20px', borderBottom: '1px solid #ddd', paddingBottom: '5px' }}>
-              Precios (con IVA)
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px' }}>
-              <span><strong>Distribuidor:</strong></span>
-              <span>${producto.precios.distribuidor.toFixed(2)}</span>
-
-              <span><strong>Mayoreo (+30%):</strong></span>
-              <span>${producto.precios.mayoreo.toFixed(2)}</span>
-
-              <span><strong>Menudeo (+40%):</strong></span>
-              <span>${producto.precios.menudeo.toFixed(2)}</span>
-
-              <span><strong>Público (+50%):</strong></span>
-              <span>${producto.precios.publico.toFixed(2)}</span>
-
-              <span><strong>Distribuidor +40%:</strong></span>
-              <span>${producto.precios.mas40.toFixed(2)}</span>
-
-              <span><strong>Distribuidor +30%:</strong></span>
-              <span>${producto.precios.mas30.toFixed(2)}</span>
+          {error && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px 18px',
+              background: '#fff5f5',
+              color: '#c0392b',
+              borderRadius: '10px',
+              borderLeft: '4px solid #c0392b'
+            }}>
+              {error}
             </div>
-          </div>
+          )}
+
+          {producto && (
+            <div style={{ marginTop: '20px' }}>
+              <div style={{
+                textAlign: 'center',
+                marginBottom: '20px',
+                background: '#f8f9fa',
+                padding: '20px',
+                borderRadius: '12px'
+              }}>
+                <img
+                  src={`https://via.placeholder.com/200x200/1a1a2e/ffffff?text=${producto.codigo}`}
+                  alt={producto.descripcion}
+                  style={{ maxWidth: '200px', maxHeight: '200px' }}
+                  onError={(e) => {
+                    e.target.src = 'https://via.placeholder.com/200x200/ff6b6b/ffffff?text=Sin+Imagen';
+                  }}
+                />
+                <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
+                  🔍 
+                  <a href={`https://www.google.com/search?q=${encodeURIComponent(producto.descripcion + ' Truper')}&tbm=isch`} 
+                     target="_blank" rel="noopener noreferrer"
+                     style={{ color: '#667eea', marginLeft: '5px' }}>
+                    Ver imagen en Google
+                  </a>
+                </p>
+              </div>
+
+              <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px' }}>
+                <h2 style={{ marginTop: 0 }}>{producto.descripcion}</h2>
+                <p><strong>Código:</strong> {producto.codigo}</p>
+                <p><strong>Clave:</strong> {producto.clave || 'N/A'}</p>
+                <p><strong>Marca:</strong> {producto.marca || 'TRUPER'}</p>
+                <p><strong>Familia:</strong> {producto.familia || 'N/A'}</p>
+                {producto.ean && <p><strong>EAN:</strong> {producto.ean}</p>}
+
+                <hr style={{ margin: '15px 0' }} />
+
+                <h3>💰 Precios (con IVA)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div><strong>Público:</strong></div>
+                  <div style={{ color: '#27ae60', fontWeight: 'bold' }}>{formatearPrecio(producto.precioPublico)}</div>
+
+                  <div><strong>Mayoreo:</strong></div>
+                  <div>{formatearPrecio(producto.precioMayoreo)}</div>
+
+                  <div><strong>Distribuidor:</strong></div>
+                  <div>{formatearPrecio(producto.precioDistribuidor)}</div>
+
+                  <div><strong>Distribuidor +30%:</strong></div>
+                  <div style={{ color: '#e67e22' }}>{formatearPrecio(producto.precioDist30)}</div>
+
+                  <div><strong>Distribuidor +40%:</strong></div>
+                  <div style={{ color: '#e74c3c' }}>{formatearPrecio(producto.precioDist40)}</div>
+
+                  <div><strong>Precio mínimo:</strong></div>
+                  <div>{formatearPrecio(producto.precioMinimo)}</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
