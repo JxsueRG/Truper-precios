@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Precios</title>
+    <!-- Librería para leer Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7fc;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #1a3e60;
+        }
+        .controles {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+        }
+        .controles input[type="file"] {
+            border: 1px solid #ccc;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: #fafafa;
+            cursor: pointer;
+        }
+        .controles input[type="text"] {
+            padding: 8px 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            width: 300px;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+        .controles input[type="text"]:focus {
+            border-color: #1a73e8;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(26,115,232,0.2);
+        }
+        .controles label {
+            font-weight: 600;
+            color: #1a3e60;
+        }
+        #tableContainer {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            overflow-x: auto;
+            padding: 10px 0;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 1100px;
+        }
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: #1a3e60;
+            color: white;
+        }
+        th {
+            padding: 12px 10px;
+            text-align: left;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+        td {
+            padding: 10px 10px;
+            border-bottom: 1px solid #e9edf2;
+            vertical-align: middle;
+        }
+        tr:hover td {
+            background-color: #f8faff;
+        }
+        .img-placeholder {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            background: #eef2f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: bold;
+            color: #1a3e60;
+            text-transform: uppercase;
+        }
+        .img-placeholder img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .precio {
+            font-weight: 600;
+            color: #0b2b44;
+        }
+        .text-muted {
+            color: #888;
+            font-size: 12px;
+        }
+        .badge {
+            background: #d9e6f2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            color: #1a3e60;
+        }
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #777;
+        }
+        @media (max-width: 768px) {
+            .controles { flex-direction: column; align-items: stretch; }
+            .controles input[type="text"] { width: 100%; }
+            table { font-size: 12px; min-width: 800px; }
+            th, td { padding: 6px 6px; }
+        }
+    </style>
+</head>
+<body>
+
+<h1>📦 Catálogo de Precios</h1>
+
+<div class="controles">
+    <label for="fileInput">📂 Cargar Excel:</label>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <input type="text" id="searchInput" placeholder="🔍 Buscar por descripción, código o marca...">
+    <span id="rowCount" style="font-size:14px; color:#555;"></span>
+</div>
+
+<div id="tableContainer">
+    <p style="text-align:center; padding:40px; color:#888;">Carga un archivo Excel para ver los precios.</p>
+</div>
+
+<footer>
+    * Los precios son orientativos. Las columnas <strong>Distribuidor +30%</strong> y <strong>Distribuidor +40%</strong> se calculan sobre el precio Distribuidor con IVA.
+</footer>
+
+<script>
+    (function() {
+        const fileInput = document.getElementById('fileInput');
+        const searchInput = document.getElementById('searchInput');
+        const tableContainer = document.getElementById('tableContainer');
+        const rowCount = document.getElementById('rowCount');
+
+        let productos = [];
+
+        // Función para formatear números como moneda
+        function formatPrice(val) {
+            if (val === undefined || val === null || isNaN(val) || val === '') return '—';
+            const num = parseFloat(val);
+            if (isNaN(num)) return '—';
+            return '$ ' + num.toFixed(2);
+        }
+
+        // Generar un placeholder de imagen con iniciales
+        function getImageHtml(desc, codigo, marca) {
+            const nombre = desc || 'Producto';
+            const iniciales = nombre.split(' ').slice(0, 3).map(w => w[0]).join('').toUpperCase() || '??';
+            // Usamos un servicio de placeholder que genera una imagen con las iniciales
+            const url = `https://ui-avatars.com/api/?name=${encodeURIComponent(iniciales)}&size=50&background=1a3e60&color=fff&font-size=0.5&bold=true`;
+            // También se puede usar picsum para imágenes aleatorias:
+            // const url = `https://picsum.photos/seed/${codigo}/50/50`;
+            return `<div class="img-placeholder"><img src="${url}" alt="${nombre}" loading="lazy" onerror="this.style.display='none';this.parentElement.textContent='${iniciales}'"></div>`;
+        }
+
+        // Renderizar la tabla
+        function renderTable(data) {
+            if (!data || data.length === 0) {
+                tableContainer.innerHTML = '<p style="text-align:center; padding:40px; color:#888;">No hay productos que coincidan con la búsqueda.</p>';
+                rowCount.textContent = '';
+                return;
+            }
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Imagen</th>
+                            <th>Código</th>
+                            <th>Descripción</th>
+                            <th>Marca</th>
+                            <th>Distribuidor con IVA</th>
+                            <th>Mayoreo con IVA</th>
+                            <th>Menudeo con IVA</th>
+                            <th>Distribuidor +30%</th>
+                            <th>Distribuidor +40%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            data.forEach(p => {
+                const dist = parseFloat(p.distribuidorIVA) || 0;
+                const mayoreo = parseFloat(p.mayoreoIVA) || 0;
+                const menudeo = parseFloat(p.menudeoIVA) || 0;
+                const dist30 = dist * 1.3;
+                const dist40 = dist * 1.4;
+
+                html += `
+                    <tr>
+                        <td>${getImageHtml(p.descripcion, p.codigo, p.marca)}</td>
+                        <td><span class="badge">${p.codigo || ''}</span></td>
+                        <td><strong>${p.descripcion || ''}</strong></td>
+                        <td>${p.marca || ''}</td>
+                        <td class="precio">${formatPrice(dist)}</td>
+                        <td class="precio">${formatPrice(mayoreo)}</td>
+                        <td class="precio">${formatPrice(menudeo)}</td>
+                        <td class="precio" style="color:#c4450c;">${formatPrice(dist30)}</td>
+                        <td class="precio" style="color:#b22222;">${formatPrice(dist40)}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            tableContainer.innerHTML = html;
+            rowCount.textContent = `${data.length} productos`;
+        }
+
+        // Procesar el archivo Excel
+        function processExcel(data) {
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(firstSheet);
+
+            if (!json || json.length === 0) {
+                alert('El archivo no contiene datos válidos.');
+                return;
+            }
+
+            // Mapear columnas según los nombres del archivo
+            productos = json.map(row => {
+                return {
+                    codigo: row['código'] || row['codigo'] || '',
+                    clave: row['clave'] || '',
+                    descripcion: row['descripción'] || row['descripcion'] || '',
+                    marca: row['Marca'] || '',
+                    distribuidorIVA: parseFloat(row['precio distribuidor con IVA']) || 0,
+                    mayoreoIVA: parseFloat(row['precio mayoreo con IVA']) || 0,
+                    menudeoIVA: parseFloat(row['precio público con IVA']) || 0,
+                    // También podríamos tomar 'precio' como menudeo sin IVA, pero usamos público con IVA
+                };
+            });
+
+            // Filtrar productos con al menos un precio o descripción
+            productos = productos.filter(p => p.descripcion || p.codigo);
+
+            // Aplicar búsqueda inicial (vacía)
+            applySearch();
+        }
+
+        // Aplicar filtro de búsqueda
+        function applySearch() {
+            const term = searchInput.value.trim().toLowerCase();
+            let filtered = productos;
+            if (term) {
+                filtered = productos.filter(p => {
+                    return (p.codigo && p.codigo.toLowerCase().includes(term)) ||
+                           (p.descripcion && p.descripcion.toLowerCase().includes(term)) ||
+                           (p.marca && p.marca.toLowerCase().includes(term));
+                });
+            }
+            renderTable(filtered);
+        }
+
+        // Evento de carga del archivo
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const data = new Uint8Array(ev.target.result);
+                    processExcel(data);
+                } catch (err) {
+                    alert('Error al leer el archivo: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Evento de búsqueda
+        searchInput.addEventListener('input', applySearch);
+
+        // Si el usuario quiere recargar, puede volver a seleccionar el archivo
+        console.log('Listo para cargar el catálogo.');
+    })();
+</script>
+
+</body>
+</html>
