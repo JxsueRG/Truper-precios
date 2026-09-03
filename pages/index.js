@@ -5,6 +5,7 @@ export default function Home() {
   const [producto, setProducto] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
+  const [imgIndex, setImgIndex] = useState(0); // Controla de dónde saca la imagen
 
   const buscarProducto = async (e) => {
     e.preventDefault();
@@ -16,6 +17,7 @@ export default function Home() {
     setCargando(true);
     setError('');
     setProducto(null);
+    setImgIndex(0); // Reiniciamos la imagen al buscar uno nuevo
 
     try {
       const response = await fetch(`/api/productos?codigo=${codigo.trim()}`);
@@ -33,44 +35,58 @@ export default function Home() {
     }
   };
 
-  // --- CÁLCULOS DE PRECIOS E IMAGEN ---
+  // --- CÁLCULOS INTELIGENTES DE PRECIOS ---
   let distribuidorIva = 0;
   let mayoreoIva = 0;
   let menudeoIva = 0;
   let publico = 0;
   let distMas30 = 0;
   let distMas40 = 0;
-  let imagenUrl = '';
 
   if (producto) {
     const iva = 1.16;
     
-    // IMPORTANTE: Asegúrate de que tu JSON/API devuelva estos nombres
-    // Si tu Excel dice "precio", usamos ese como distribuidor base
-    const precioDist = producto.distribuidor || producto.precio || 0; 
-    const precioMay = producto.mayoreo || 0;
-    const precioMen = producto.menudeo || 0;
-    
+    // Función infalible: Busca la palabra en las columnas del Excel sin importar mayúsculas
+    const extraerPrecio = (palabra) => {
+      const key = Object.keys(producto).find(k => k.toLowerCase().includes(palabra));
+      if (key && producto[key]) {
+        // Limpia el texto por si el Excel trae "$" o comas (ej. "$ 1,500.00")
+        const valorLimpio = producto[key].toString().replace(/[^0-9.]/g, '');
+        return parseFloat(valorLimpio) || 0;
+      }
+      return 0;
+    };
+
+    // Extraemos los precios exactos
+    const precioDist = extraerPrecio('distribuidor') || extraerPrecio('precio') || 0;
+    const precioMay = extraerPrecio('mayoreo');
+    const precioMen = extraerPrecio('menudeo');
+    const precioPub = extraerPrecio('publico') || extraerPrecio('público');
+
+    // Hacemos las sumas
     distribuidorIva = precioDist * iva;
     mayoreoIva = precioMay * iva;
     menudeoIva = precioMen * iva;
-    publico = producto.publico || 0; // El público normalmente ya trae IVA en Truper
+    publico = precioPub; // Normalmente el precio al público ya incluye IVA
 
     distMas30 = distribuidorIva * 1.30;
     distMas40 = distribuidorIva * 1.40;
-
-    // Buscamos la imagen en Truper usando la CLAVE
-    imagenUrl = `https://www.truper.com/catvig/img/d/${producto.clave}.jpg`;
   }
 
+  // --- RUTAS DE IMÁGENES DE TRUPER ---
+  // 1. La del banco de contenido digital que pediste
+  const imgBancoDigital = producto ? `https://www.truper.com/banco-contenido-digital/mx/v/img_banco_digital/1500/${producto.codigo}.jpg` : '';
+  // 2. Ruta alternativa del catálogo
+  const imgCatalogo = producto ? `https://www.truper.com/catvig/img/d/${producto.clave}.jpg` : '';
+
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
       <h1 style={{ textAlign: 'center' }}>🏪 Ferretería - Truper 2026</h1>
       
       <form onSubmit={buscarProducto} style={{ margin: '20px 0', display: 'flex', justifyContent: 'center' }}>
         <input
           type="text"
-          placeholder="Código del producto"
+          placeholder="Código del producto (Ej. 43920)"
           value={codigo}
           onChange={(e) => setCodigo(e.target.value)}
           style={{
@@ -112,20 +128,29 @@ export default function Home() {
           flexDirection: 'column',
           alignItems: 'center'
         }}>
-          {/* IMAGEN DEL PRODUCTO */}
+          
+          {/* IMAGEN CON FALLBACK AUTOMÁTICO */}
           <img 
-            src={imagenUrl} 
-            alt={producto.descripcion} 
-            onError={(e) => { e.target.src = 'https://via.placeholder.com/200?text=Sin+Foto'; }}
-            style={{ width: '200px', height: '200px', objectFit: 'contain', marginBottom: '20px' }} 
+            src={imgIndex === 0 ? imgBancoDigital : imgCatalogo} 
+            alt={producto.descripcion || 'Producto'} 
+            onError={(e) => { 
+              if (imgIndex === 0) {
+                setImgIndex(1); // Si falla la del Banco Digital, intenta la del Catálogo
+              } else {
+                e.target.src = 'https://via.placeholder.com/200?text=Imagen+No+Disponible'; 
+              }
+            }}
+            style={{ width: '250px', height: '250px', objectFit: 'contain', marginBottom: '20px' }} 
           />
 
-          <h2 style={{ textAlign: 'center', margin: '0 0 10px 0', color: '#333' }}>{producto.descripcion}</h2>
+          <h2 style={{ textAlign: 'center', margin: '0 0 10px 0', color: '#333' }}>
+            {producto.descripcion || producto.Descripcion}
+          </h2>
           
           <div style={{ display: 'flex', gap: '20px', color: '#666', marginBottom: '20px' }}>
-            <p style={{ margin: 0 }}><strong>Código:</strong> {producto.codigo}</p>
-            <p style={{ margin: 0 }}><strong>Clave:</strong> {producto.clave || 'N/A'}</p>
-            <p style={{ margin: 0 }}><strong>Marca:</strong> {producto.marca || 'TRUPER'}</p>
+            <p style={{ margin: 0 }}><strong>Código:</strong> {producto.codigo || producto.Codigo}</p>
+            <p style={{ margin: 0 }}><strong>Clave:</strong> {producto.clave || producto.Clave || 'N/A'}</p>
+            <p style={{ margin: 0 }}><strong>Marca:</strong> {producto.marca || producto.Marca || 'Truper'}</p>
           </div>
 
           {/* LISTA DE PRECIOS */}
