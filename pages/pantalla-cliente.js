@@ -51,7 +51,7 @@ export default function PantallaCliente() {
     );
   }
 
-  const p = producto.precios || {};
+  const c = producto.caracteristicas || {};
 
   return (
     <div style={estilos.contenedor}>
@@ -66,8 +66,45 @@ export default function PantallaCliente() {
       <div style={estilos.info}>
         <h1 style={estilos.titulo}>{producto.descripcion}</h1>
         <p style={estilos.clave}>Clave: {producto.clave} &nbsp;·&nbsp; Código: {producto.codigo}</p>
-        <div style={estilos.precioGrande}>{fmt(p.menudeoConIva ?? p.publicoConIva)}</div>
-        <p style={estilos.precioLabel}>Precio público (IVA incluido)</p>
+
+        <div style={estilos.caracteristicas}>
+          {c.unidad && (
+            <div style={estilos.caractItem}>
+              <span style={estilos.caractLabel}>Unidad</span>
+              <span style={estilos.caractValue}>{c.unidad}</span>
+            </div>
+          )}
+          {c.piezasPorCaja != null && (
+            <div style={estilos.caractItem}>
+              <span style={estilos.caractLabel}>Piezas por caja</span>
+              <span style={estilos.caractValue}>{c.piezasPorCaja}</span>
+            </div>
+          )}
+          {c.pesoKg != null && (
+            <div style={estilos.caractItem}>
+              <span style={estilos.caractLabel}>Peso</span>
+              <span style={estilos.caractValue}>{c.pesoKg} kg</span>
+            </div>
+          )}
+          {c.volumenCm3 != null && (
+            <div style={estilos.caractItem}>
+              <span style={estilos.caractLabel}>Volumen</span>
+              <span style={estilos.caractValue}>{c.volumenCm3} cm³</span>
+            </div>
+          )}
+          {producto.marca && (
+            <div style={estilos.caractItem}>
+              <span style={estilos.caractLabel}>Marca</span>
+              <span style={estilos.caractValue}>{producto.marca}</span>
+            </div>
+          )}
+          {producto.ean && (
+            <div style={estilos.caractItem}>
+              <span style={estilos.caractLabel}>Código de barras</span>
+              <span style={estilos.caractValue}>{producto.ean}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -124,6 +161,33 @@ const estilos = {
     fontSize: 'clamp(0.9rem, 1.2vw, 1.2rem)',
     color: '#a0a0c0',
     marginTop: '10px',
+  },
+  caracteristicas: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
+    marginTop: '10px',
+  },
+  caractItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    borderBottom: '1px solid rgba(255,255,255,0.12)',
+    paddingBottom: '10px',
+    gap: '20px',
+  },
+  caractLabel: {
+    fontSize: 'clamp(0.85rem, 1.1vw, 1.1rem)',
+    color: '#a0a0c0',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    whiteSpace: 'nowrap',
+  },
+  caractValue: {
+    fontSize: 'clamp(1.1rem, 1.8vw, 1.8rem)',
+    fontWeight: 700,
+    color: '#fff',
+    textAlign: 'right',
   },
   contenedorVacio: {
     minHeight: '100vh',
