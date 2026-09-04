@@ -10,6 +10,8 @@ const FALLBACK_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 );
 
 const fmt = (n) => (typeof n === 'number' ? `$${n.toFixed(2)}` : '—');
+const PANTALLA_KEY = 'ferreteria_pantalla_cliente';
+let ventanaCliente = null;
 
 export default function Home() {
   const [codigo, setCodigo] = useState('');
@@ -64,6 +66,9 @@ export default function Home() {
       if (response.ok) {
         setProducto(data);
         guardarEnHistorial(data);
+        try {
+          localStorage.setItem(PANTALLA_KEY, JSON.stringify(data));
+        } catch {}
       } else {
         setError(data.error || 'Producto no encontrado');
         setSugerencias(data.sugerencias || []);
@@ -111,6 +116,53 @@ export default function Home() {
     window.open(url, '_blank');
   };
 
+  const abrirPantallaCliente = async () => {
+    const url = `${window.location.origin}/pantalla-cliente`;
+
+    // Método automático: solo funciona en Chrome/Edge y requiere permiso
+    // del usuario ("Administración de ventanas"). Si está disponible,
+    // busca un segundo monitor y abre la ventana ya puesta ahí, en
+    // pantalla completa.
+    if (typeof window.getScreenDetails === 'function') {
+      try {
+        const detalles = await window.getScreenDetails();
+        const otraPantalla = detalles.screens.find(
+          (s) => s !== detalles.currentScreen
+        );
+
+        if (otraPantalla) {
+          if (ventanaCliente && !ventanaCliente.closed) {
+            ventanaCliente.close();
+          }
+          ventanaCliente = window.open(
+            url,
+            'pantalla_cliente',
+            `left=${otraPantalla.availLeft},top=${otraPantalla.availTop},width=${otraPantalla.availWidth},height=${otraPantalla.availHeight}`
+          );
+          // Espera a que cargue y la pone en pantalla completa en ese monitor
+          setTimeout(() => {
+            try {
+              ventanaCliente?.document?.documentElement?.requestFullscreen?.();
+            } catch {}
+          }, 600);
+          return;
+        }
+      } catch (err) {
+        // El usuario negó el permiso o el navegador no lo soporta del todo:
+        // cae al método manual de abajo.
+      }
+    }
+
+    // Método manual (compatible con cualquier navegador): abre una ventana
+    // nueva que el usuario arrastra una sola vez al segundo monitor.
+    if (!ventanaCliente || ventanaCliente.closed) {
+      ventanaCliente = window.open(url, 'pantalla_cliente', 'width=1000,height=650');
+      alert('Se abrió la "Pantalla de cliente" en una ventana nueva.\n\nArrástrala a tu segundo monitor y presiona F11 (o el botón de pantalla completa) — solo tienes que hacerlo la primera vez, luego se irá actualizando sola con cada búsqueda.');
+    } else {
+      ventanaCliente.focus();
+    }
+  };
+
   const p = producto?.precios || {};
 
   return (
@@ -145,6 +197,15 @@ export default function Home() {
             {cargando ? 'Buscando…' : '🔍 Buscar'}
           </button>
         </form>
+
+        <button
+          type="button"
+          className="btnCopiar"
+          style={{ marginTop: '12px' }}
+          onClick={abrirPantallaCliente}
+        >
+          🖥️ Abrir pantalla de cliente
+        </button>
 
         {error && (
           <div className="error">
