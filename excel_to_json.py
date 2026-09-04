@@ -48,7 +48,22 @@ for index, row in df.iterrows():
         marca = str(row.get('Marca', '')).strip() if pd.notna(row.get('Marca')) else ''
         familia = str(row.get('Familia', '')).strip() if pd.notna(row.get('Familia')) else ''
         desc_familia = str(row.get('Descripción Familia', '')).strip() if pd.notna(row.get('Descripción Familia')) else ''
-        ean = str(row.get('ean', '')).strip() if pd.notna(row.get('ean')) else ''
+        ean_raw = row.get('ean')
+        if pd.notna(ean_raw):
+            try:
+                ean = str(int(float(ean_raw)))
+            except (ValueError, TypeError):
+                ean = str(ean_raw).strip()
+        else:
+            ean = ''
+
+        # --- Características del producto ---
+        unidad = str(row.get('unidad', '')).strip() if pd.notna(row.get('unidad')) else ''
+        piezas_caja = row.get('caja') if pd.notna(row.get('caja')) else None
+        piezas_master = row.get('master') if pd.notna(row.get('master')) else None
+        peso_kg = round(float(row.get('Peso[Kg]')), 3) if pd.notna(row.get('Peso[Kg]')) else None
+        volumen_cm3 = round(float(row.get('Volumen[cm3]')), 2) if pd.notna(row.get('Volumen[cm3]')) else None
+        alta_rotacion = bool(row.get('alta rotación')) if pd.notna(row.get('alta rotación')) else False
 
         producto = {
             "codigo": codigo,
@@ -58,6 +73,14 @@ for index, row in df.iterrows():
             "familia": familia,
             "descripcionFamilia": desc_familia,
             "ean": ean,
+            "caracteristicas": {
+                "unidad": unidad,
+                "piezasPorCaja": int(piezas_caja) if piezas_caja is not None else None,
+                "piezasPorMaster": int(piezas_master) if piezas_master is not None else None,
+                "pesoKg": peso_kg,
+                "volumenCm3": volumen_cm3,
+                "altaRotacion": alta_rotacion,
+            },
             "precios": {
                 # Nota: Truper no maneja una columna aparte de "menudeo";
                 # en la lista pública, menudeo = precio público con IVA.
