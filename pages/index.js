@@ -269,8 +269,12 @@ export default function Home() {
                   <span className="value">{fmt(p.mayoreoConIva)}</span>
                 </div>
                 <div className="precioItem destacado">
-                  <span className="label">Menudeo / Público c/IVA</span>
+                  <span className="label">Menudeo c/IVA</span>
                   <span className="value">{fmt(p.menudeoConIva)}</span>
+                </div>
+                <div className="precioItem destacado">
+                  <span className="label">Público c/IVA</span>
+                  <span className="value">{fmt(p.publicoConIva)}</span>
                 </div>
                 <div className="precioItem calculado">
                   <span className="label">Distribuidor c/IVA +30%</span>
