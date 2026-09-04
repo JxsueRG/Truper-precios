@@ -1,175 +1,256 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+const HISTORIAL_KEY = 'ferreteria_historial';
+const MAX_HISTORIAL = 6;
+const FALLBACK_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+    <rect width="200" height="200" fill="#eeeeee"/>
+    <text x="50%" y="50%" font-size="14" fill="#999" text-anchor="middle" dy=".3em" font-family="sans-serif">Sin imagen</text>
+  </svg>`
+);
+
+const fmt = (n) => (typeof n === 'number' ? `$${n.toFixed(2)}` : '—');
 
 export default function Home() {
   const [codigo, setCodigo] = useState('');
   const [producto, setProducto] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
+  const [sugerencias, setSugerencias] = useState([]);
+  const [historial, setHistorial] = useState([]);
+  const [imagenError, setImagenError] = useState(false);
+  const inputRef = useRef(null);
 
-  const buscarProducto = async (e) => {
-    e.preventDefault();
-    if (!codigo.trim()) {
-      setError('Ingresa un código');
+  useEffect(() => {
+    try {
+      const guardado = JSON.parse(localStorage.getItem(HISTORIAL_KEY) || '[]');
+      setHistorial(guardado);
+    } catch {
+      setHistorial([]);
+    }
+  }, []);
+
+  const guardarEnHistorial = (p) => {
+    setHistorial(prev => {
+      const sinDuplicado = prev.filter(h => h.codigo !== p.codigo);
+      const nuevo = [
+        { codigo: p.codigo, descripcion: p.descripcion, precio: p.precios?.publicoConIva ?? p.precio },
+        ...sinDuplicado
+      ].slice(0, MAX_HISTORIAL);
+      try {
+        localStorage.setItem(HISTORIAL_KEY, JSON.stringify(nuevo));
+      } catch {}
+      return nuevo;
+    });
+  };
+
+  const buscar = async (valor) => {
+    const termino = (valor ?? codigo).trim();
+    if (!termino) {
+      setError('Ingresa un código o clave');
       return;
     }
 
     setCargando(true);
     setError('');
+    setSugerencias([]);
     setProducto(null);
+    setImagenError(false);
 
     try {
-      const response = await fetch(`/api/productos?codigo=${codigo.trim()}`);
+      const response = await fetch(`/api/productos?codigo=${encodeURIComponent(termino)}`);
       const data = await response.json();
 
       if (response.ok) {
         setProducto(data);
+        guardarEnHistorial(data);
       } else {
         setError(data.error || 'Producto no encontrado');
+        setSugerencias(data.sugerencias || []);
       }
     } catch (err) {
-      setError('Error al buscar');
+      setError('Error al conectar con el servidor');
     } finally {
       setCargando(false);
     }
   };
 
-  const formatearPrecio = (precio) => {
-    if (!precio || precio === 0) return 'N/D';
-    return '$' + precio.toFixed(2);
+  const buscarProducto = (e) => {
+    e.preventDefault();
+    buscar();
   };
 
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-      padding: '20px'
-    }}>
-      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        <div style={{
-          background: 'rgba(255,255,255,0.05)',
-          padding: '30px',
-          borderRadius: '16px',
-          textAlign: 'center',
-          marginBottom: '20px'
-        }}>
-          <h1 style={{ color: 'white', fontSize: '2.5rem' }}>🏪 Ferretería</h1>
-          <p style={{ color: 'rgba(255,255,255,0.8)' }}>Consulta de precios Truper 2026</p>
-        </div>
+  const limpiarInput = () => {
+    setCodigo('');
+    setProducto(null);
+    setError('');
+    setSugerencias([]);
+    inputRef.current?.focus();
+  };
 
-        <div style={{
-          background: 'white',
-          padding: '25px',
-          borderRadius: '16px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
-        }}>
-          <form onSubmit={buscarProducto} style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+  const copiarInfo = () => {
+    if (!producto) return;
+    const p = producto.precios || {};
+    const texto = [
+      producto.descripcion,
+      `Código: ${producto.codigo} | Clave: ${producto.clave}`,
+      `Distribuidor c/IVA: ${fmt(p.distribuidorConIva)}`,
+      `Distribuidor c/IVA +30%: ${fmt(p.distribuidorConIva30)}`,
+      `Distribuidor c/IVA +40%: ${fmt(p.distribuidorConIva40)}`,
+      `Mayoreo c/IVA: ${fmt(p.mayoreoConIva)}`,
+      `Menudeo/Público c/IVA: ${fmt(p.menudeoConIva)}`,
+    ].join('\n');
+    navigator.clipboard?.writeText(texto).catch(() => {});
+  };
+
+  const compartirWhatsApp = () => {
+    if (!producto) return;
+    const p = producto.precios || {};
+    const texto = `¡Hola! Te comparto este producto:\n\n*${producto.descripcion}*\nCódigo: ${producto.codigo} | Clave: ${producto.clave}\nPúblico c/IVA: ${fmt(p.menudeoConIva)}\nMayoreo c/IVA: ${fmt(p.mayoreoConIva)}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+  };
+
+  const p = producto?.precios || {};
+
+  return (
+    <div className="container">
+      <header className="header">
+        <div className="headerContent">
+          <h1>🏪 Ferretería · Catálogo Truper</h1>
+          <p>Consulta precios y productos al instante</p>
+          <span className="badge">Catálogo 2026</span>
+        </div>
+      </header>
+
+      <section className="buscador">
+        <form onSubmit={buscarProducto}>
+          <div className="inputGroup">
             <input
+              ref={inputRef}
               type="text"
-              placeholder="Código del producto (ej: 100048)"
+              className="input"
+              placeholder="Código o clave del producto (ej. 100048 o PET-15X)"
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '14px 18px',
-                fontSize: '16px',
-                border: '2px solid #e8e8e8',
-                borderRadius: '10px',
-                minWidth: '200px'
-              }}
+              autoFocus
             />
-            <button
-              type="submit"
-              style={{
-                padding: '14px 35px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-              disabled={cargando}
-            >
-              {cargando ? 'Buscando...' : '🔍 Buscar'}
-            </button>
-          </form>
+            {codigo && (
+              <button type="button" className="clearBtn" onClick={limpiarInput} aria-label="Limpiar">
+                ✕
+              </button>
+            )}
+          </div>
+          <button type="submit" className="button" disabled={cargando}>
+            {cargando ? 'Buscando…' : '🔍 Buscar'}
+          </button>
+        </form>
 
-          {error && (
-            <div style={{
-              marginTop: '12px',
-              padding: '12px 18px',
-              background: '#fff5f5',
-              color: '#c0392b',
-              borderRadius: '10px',
-              borderLeft: '4px solid #c0392b'
-            }}>
-              {error}
-            </div>
-          )}
-
-          {producto && (
-            <div style={{ marginTop: '20px' }}>
-              <div style={{
-                textAlign: 'center',
-                marginBottom: '20px',
-                background: '#f8f9fa',
-                padding: '20px',
-                borderRadius: '12px'
-              }}>
-                <img
-                  src={`https://via.placeholder.com/200x200/1a1a2e/ffffff?text=${producto.codigo}`}
-                  alt={producto.descripcion}
-                  style={{ maxWidth: '200px', maxHeight: '200px' }}
-                  onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/200x200/ff6b6b/ffffff?text=Sin+Imagen';
-                  }}
-                />
-                <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
-                  🔍 
-                  <a href={`https://www.google.com/search?q=${encodeURIComponent(producto.descripcion + ' Truper')}&tbm=isch`} 
-                     target="_blank" rel="noopener noreferrer"
-                     style={{ color: '#667eea', marginLeft: '5px' }}>
-                    Ver imagen en Google
-                  </a>
-                </p>
+        {error && (
+          <div className="error">
+            {error}
+            {sugerencias.length > 0 && (
+              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {sugerencias.map((s) => (
+                  <div
+                    key={s.codigo}
+                    onClick={() => { setCodigo(s.codigo); buscar(s.codigo); }}
+                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    {s.codigo} — {s.clave} — {s.descripcion}
+                  </div>
+                ))}
               </div>
+            )}
+          </div>
+        )}
+      </section>
 
-              <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px' }}>
-                <h2 style={{ marginTop: 0 }}>{producto.descripcion}</h2>
-                <p><strong>Código:</strong> {producto.codigo}</p>
-                <p><strong>Clave:</strong> {producto.clave || 'N/A'}</p>
-                <p><strong>Marca:</strong> {producto.marca || 'TRUPER'}</p>
-                <p><strong>Familia:</strong> {producto.familia || 'N/A'}</p>
-                {producto.ean && <p><strong>EAN:</strong> {producto.ean}</p>}
+      {producto && (
+        <section className="resultado">
+          <div className="card">
+            <div className="imagenContainer">
+              <span className="marcaTag">{producto.marca || 'TRUPER'}</span>
+              <img
+                className="imagen"
+                src={imagenError || !producto.imagen ? FALLBACK_IMG : producto.imagen}
+                alt={producto.descripcion}
+                onError={() => setImagenError(true)}
+              />
+            </div>
+            <div className="info">
+              <div className="breadcrumb">
+                {producto.descripcionFamilia || producto.familia || 'Ferretería'}
+                <span>›</span>
+                {producto.marca || 'Truper'}
+              </div>
+              <h2>{producto.descripcion}</h2>
 
-                <hr style={{ margin: '15px 0' }} />
-
-                <h3>💰 Precios (con IVA)</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div><strong>Público:</strong></div>
-                  <div style={{ color: '#27ae60', fontWeight: 'bold' }}>{formatearPrecio(producto.precioPublico)}</div>
-
-                  <div><strong>Mayoreo:</strong></div>
-                  <div>{formatearPrecio(producto.precioMayoreo)}</div>
-
-                  <div><strong>Distribuidor:</strong></div>
-                  <div>{formatearPrecio(producto.precioDistribuidor)}</div>
-
-                  <div><strong>Distribuidor +30%:</strong></div>
-                  <div style={{ color: '#e67e22' }}>{formatearPrecio(producto.precioDist30)}</div>
-
-                  <div><strong>Distribuidor +40%:</strong></div>
-                  <div style={{ color: '#e74c3c' }}>{formatearPrecio(producto.precioDist40)}</div>
-
-                  <div><strong>Precio mínimo:</strong></div>
-                  <div>{formatearPrecio(producto.precioMinimo)}</div>
+              <div className="detalles">
+                <div className="detalleItem">
+                  <span className="label">Código</span>
+                  <span className="value">{producto.codigo}</span>
+                </div>
+                <div className="detalleItem">
+                  <span className="label">Clave</span>
+                  <span className="value">{producto.clave || 'N/A'}</span>
                 </div>
               </div>
+
+              <div className="tablaPrecios">
+                <div className="precioItem">
+                  <span className="label">Distribuidor c/IVA</span>
+                  <span className="value">{fmt(p.distribuidorConIva)}</span>
+                </div>
+                <div className="precioItem">
+                  <span className="label">Mayoreo c/IVA</span>
+                  <span className="value">{fmt(p.mayoreoConIva)}</span>
+                </div>
+                <div className="precioItem destacado">
+                  <span className="label">Menudeo / Público c/IVA</span>
+                  <span className="value">{fmt(p.menudeoConIva)}</span>
+                </div>
+                <div className="precioItem destacado">
+                  <span className="label">Público c/IVA</span>
+                  <span className="value">{fmt(p.publicoConIva)}</span>
+                </div>
+                <div className="precioItem calculado">
+                  <span className="label">Distribuidor c/IVA +30%</span>
+                  <span className="value">{fmt(p.distribuidorConIva30)}</span>
+                </div>
+                <div className="precioItem calculado">
+                  <span className="label">Distribuidor c/IVA +40%</span>
+                  <span className="value">{fmt(p.distribuidorConIva40)}</span>
+                </div>
+              </div>
+
+              <div className="acciones">
+                <button className="btnCopiar" onClick={copiarInfo}>📋 Copiar info</button>
+                <button className="btnWhatsApp" onClick={compartirWhatsApp}>💬 Compartir</button>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </section>
+      )}
+
+      {historial.length > 0 && (
+        <section className="historial">
+          <h3>Búsquedas recientes</h3>
+          <div className="historialList">
+            {historial.map((h) => (
+              <div
+                key={h.codigo}
+                className="historialItem"
+                onClick={() => { setCodigo(h.codigo); buscar(h.codigo); }}
+              >
+                <span className="historialCodigo">{h.codigo}</span>
+                <span className="historialDesc">{h.descripcion}</span>
+                <span className="historialPrecio">{fmt(h.precio)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
