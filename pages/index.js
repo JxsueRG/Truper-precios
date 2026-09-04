@@ -16,9 +16,9 @@ let ventanaCliente = null;
 export default function Home() {
   const [codigo, setCodigo] = useState('');
   const [producto, setProducto] = useState(null);
+  const [resultados, setResultados] = useState(null); // lista cuando la búsqueda es por nombre
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
-  const [sugerencias, setSugerencias] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [imagenError, setImagenError] = useState(false);
   const inputRef = useRef(null);
@@ -49,13 +49,13 @@ export default function Home() {
   const buscar = async (valor) => {
     const termino = (valor ?? codigo).trim();
     if (!termino) {
-      setError('Ingresa un código o clave');
+      setError('Ingresa un código, clave o nombre del producto');
       return;
     }
 
     setCargando(true);
     setError('');
-    setSugerencias([]);
+    setResultados(null);
     setProducto(null);
     setImagenError(false);
 
@@ -63,15 +63,19 @@ export default function Home() {
       const response = await fetch(`/api/productos?codigo=${encodeURIComponent(termino)}`);
       const data = await response.json();
 
-      if (response.ok) {
-        setProducto(data);
-        guardarEnHistorial(data);
-        try {
-          localStorage.setItem(PANTALLA_KEY, JSON.stringify(data));
-        } catch {}
-      } else {
+      if (!response.ok) {
         setError(data.error || 'Producto no encontrado');
-        setSugerencias(data.sugerencias || []);
+        return;
+      }
+
+      if (data.tipo === 'exacto') {
+        setProducto(data.producto);
+        guardarEnHistorial(data.producto);
+        try {
+          localStorage.setItem(PANTALLA_KEY, JSON.stringify(data.producto));
+        } catch {}
+      } else if (data.tipo === 'lista') {
+        setResultados(data);
       }
     } catch (err) {
       setError('Error al conectar con el servidor');
@@ -85,11 +89,16 @@ export default function Home() {
     buscar();
   };
 
+  const elegirResultado = (item) => {
+    setCodigo(item.codigo);
+    buscar(item.codigo);
+  };
+
   const limpiarInput = () => {
     setCodigo('');
     setProducto(null);
+    setResultados(null);
     setError('');
-    setSugerencias([]);
     inputRef.current?.focus();
   };
 
@@ -103,7 +112,8 @@ export default function Home() {
       `Distribuidor c/IVA +30%: ${fmt(p.distribuidorConIva30)}`,
       `Distribuidor c/IVA +40%: ${fmt(p.distribuidorConIva40)}`,
       `Mayoreo c/IVA: ${fmt(p.mayoreoConIva)}`,
-      `Menudeo/Público c/IVA: ${fmt(p.menudeoConIva)}`,
+      `Menudeo c/IVA: ${fmt(p.menudeoConIva)}`,
+      `Público c/IVA: ${fmt(p.publicoConIva)}`,
     ].join('\n');
     navigator.clipboard?.writeText(texto).catch(() => {});
   };
@@ -111,7 +121,7 @@ export default function Home() {
   const compartirWhatsApp = () => {
     if (!producto) return;
     const p = producto.precios || {};
-    const texto = `¡Hola! Te comparto este producto:\n\n*${producto.descripcion}*\nCódigo: ${producto.codigo} | Clave: ${producto.clave}\nPúblico c/IVA: ${fmt(p.menudeoConIva)}\nMayoreo c/IVA: ${fmt(p.mayoreoConIva)}`;
+    const texto = `¡Hola! Te comparto este producto:\n\n*${producto.descripcion}*\nCódigo: ${producto.codigo} | Clave: ${producto.clave}\nPúblico c/IVA: ${fmt(p.publicoConIva)}\nMayoreo c/IVA: ${fmt(p.mayoreoConIva)}`;
     const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank');
   };
@@ -119,10 +129,6 @@ export default function Home() {
   const abrirPantallaCliente = async () => {
     const url = `${window.location.origin}/pantalla-cliente`;
 
-    // Método automático: solo funciona en Chrome/Edge y requiere permiso
-    // del usuario ("Administración de ventanas"). Si está disponible,
-    // busca un segundo monitor y abre la ventana ya puesta ahí, en
-    // pantalla completa.
     if (typeof window.getScreenDetails === 'function') {
       try {
         const detalles = await window.getScreenDetails();
@@ -139,7 +145,6 @@ export default function Home() {
             'pantalla_cliente',
             `left=${otraPantalla.availLeft},top=${otraPantalla.availTop},width=${otraPantalla.availWidth},height=${otraPantalla.availHeight}`
           );
-          // Espera a que cargue y la pone en pantalla completa en ese monitor
           setTimeout(() => {
             try {
               ventanaCliente?.document?.documentElement?.requestFullscreen?.();
@@ -148,13 +153,10 @@ export default function Home() {
           return;
         }
       } catch (err) {
-        // El usuario negó el permiso o el navegador no lo soporta del todo:
-        // cae al método manual de abajo.
+        // cae al método manual
       }
     }
 
-    // Método manual (compatible con cualquier navegador): abre una ventana
-    // nueva que el usuario arrastra una sola vez al segundo monitor.
     if (!ventanaCliente || ventanaCliente.closed) {
       ventanaCliente = window.open(url, 'pantalla_cliente', 'width=1000,height=650');
       alert('Se abrió la "Pantalla de cliente" en una ventana nueva.\n\nArrástrala a tu segundo monitor y presiona F11 (o el botón de pantalla completa) — solo tienes que hacerlo la primera vez, luego se irá actualizando sola con cada búsqueda.');
@@ -183,7 +185,7 @@ export default function Home() {
               ref={inputRef}
               type="text"
               className="input"
-              placeholder="Código o clave del producto (ej. 100048 o PET-15X)"
+              placeholder="Código, clave o nombre (ej. 100048, PET-15X o 'brocasierra')"
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
               autoFocus
@@ -208,25 +210,31 @@ export default function Home() {
           🖥️ Abrir pantalla de cliente
         </button>
 
-        {error && (
-          <div className="error">
-            {error}
-            {sugerencias.length > 0 && (
-              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {sugerencias.map((s) => (
-                  <div
-                    key={s.codigo}
-                    onClick={() => { setCodigo(s.codigo); buscar(s.codigo); }}
-                    style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                  >
-                    {s.codigo} — {s.clave} — {s.descripcion}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {error && <div className="error">{error}</div>}
       </section>
+
+      {resultados && (
+        <section className="resultado">
+          <div style={{ padding: '4px 4px 12px' }}>
+            {resultados.total > resultados.mostrando
+              ? `Mostrando ${resultados.mostrando} de ${resultados.total} resultados — afina tu búsqueda para ver menos`
+              : `${resultados.total} resultado${resultados.total === 1 ? '' : 's'} encontrado${resultados.total === 1 ? '' : 's'}`}
+          </div>
+          <div className="historialList">
+            {resultados.resultados.map((item) => (
+              <div
+                key={item.codigo}
+                className="historialItem"
+                onClick={() => elegirResultado(item)}
+              >
+                <span className="historialCodigo">{item.codigo}</span>
+                <span className="historialDesc">{item.descripcion}</span>
+                <span className="historialPrecio">{fmt(item.precioMenudeo)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {producto && (
         <section className="resultado">
