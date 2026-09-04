@@ -265,6 +265,59 @@ body {
   font-weight: 700 !important;
 }
 
+.tablaPrecios {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+@media (max-width: 480px) {
+  .tablaPrecios {
+    grid-template-columns: 1fr;
+  }
+}
+
+.precioItem {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #f8f9fa;
+  border-left: 4px solid #ddd;
+}
+
+.precioItem .label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: #888;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+
+.precioItem .value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.precioItem.destacado {
+  background: #eafaf1;
+  border-left-color: #27ae60;
+}
+
+.precioItem.destacado .value {
+  color: #27ae60;
+}
+
+.precioItem.calculado {
+  background: #fef9ea;
+  border-left-color: #e6a817;
+}
+
+.precioItem.calculado .value {
+  color: #b7791f;
+}
+
 .acciones {
   display: flex;
   gap: 12px;
