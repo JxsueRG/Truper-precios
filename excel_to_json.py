@@ -34,6 +34,7 @@ for index, row in df.iterrows():
         # --- Niveles de precio ---
         distribuidor_con_iva = limpiar_precio(row.get('precio distribuidor con IVA'))
         mayoreo_con_iva = limpiar_precio(row.get('precio mayoreo con IVA'))
+        menudeo_con_iva = limpiar_precio(row.get('Precio Medio Mayoreo con IVA'))
         publico_con_iva = limpiar_precio(row.get('precio público con IVA'))
 
         # Si no hay ningún precio utilizable, se descarta el producto
@@ -82,11 +83,9 @@ for index, row in df.iterrows():
                 "altaRotacion": alta_rotacion,
             },
             "precios": {
-                # Nota: Truper no maneja una columna aparte de "menudeo";
-                # en la lista pública, menudeo = precio público con IVA.
                 "distribuidorConIva": distribuidor_con_iva,
                 "mayoreoConIva": mayoreo_con_iva,
-                "menudeoConIva": publico_con_iva,
+                "menudeoConIva": menudeo_con_iva,
                 "publicoConIva": publico_con_iva,
                 "distribuidorConIva30": distribuidor_con_iva_30,
                 "distribuidorConIva40": distribuidor_con_iva_40,
