@@ -13,6 +13,12 @@ function cargarProductos() {
   return productosCache;
 }
 
+function imagenDe(producto) {
+  return producto.clave ? `/api/imagen?clave=${encodeURIComponent(producto.clave)}` : null;
+}
+
+const MAX_RESULTADOS = 30;
+
 export default function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método no permitido' });
@@ -21,45 +27,69 @@ export default function handler(req, res) {
   const { codigo } = req.query;
 
   if (!codigo || !codigo.trim()) {
-    return res.status(400).json({ error: 'Se requiere un código' });
+    return res.status(400).json({ error: 'Se requiere un código, clave o nombre' });
   }
 
-  const busqueda = codigo.trim().toUpperCase();
+  const termino = codigo.trim();
+  const buscaEn = termino.toUpperCase();
 
   try {
     const productos = cargarProductos();
 
-    let producto = productos.find(p =>
-      String(p.codigo).trim().toUpperCase() === busqueda ||
-      String(p.clave || '').trim().toUpperCase() === busqueda
+    // 1) Coincidencia exacta por código o clave -> muestra el detalle completo
+    const exacto = productos.find(p =>
+      String(p.codigo).trim().toUpperCase() === buscaEn ||
+      String(p.clave || '').trim().toUpperCase() === buscaEn
     );
 
-    let sugerencias = [];
-    if (!producto) {
-      sugerencias = productos
-        .filter(p =>
-          String(p.clave || '').toUpperCase().includes(busqueda) ||
-          String(p.descripcion || '').toUpperCase().includes(busqueda)
-        )
-        .slice(0, 5)
-        .map(p => ({ codigo: p.codigo, clave: p.clave, descripcion: p.descripcion }));
-    }
-
-    if (!producto) {
-      return res.status(404).json({
-        error: 'Producto no encontrado',
-        sugerencia: sugerencias.length
-          ? 'Quisiste decir alguno de estos:'
-          : 'Verifica el código o usa la clave del producto',
-        sugerencias
+    if (exacto) {
+      return res.status(200).json({
+        tipo: 'exacto',
+        producto: { ...exacto, imagen: imagenDe(exacto) }
       });
     }
 
-    res.status(200).json({
-      ...producto,
-      // La imagen se sirve a través de nuestro propio proxy (/api/imagen)
-      // en vez de apuntar directo a truper.com, para evitar bloqueos.
-      imagen: producto.clave ? `/api/imagen?clave=${encodeURIComponent(producto.clave)}` : null
+    // 2) Sin coincidencia exacta -> búsqueda por nombre/clave/marca (varias palabras)
+    const palabras = buscaEn.split(/\s+/).filter(Boolean);
+
+    const coincide = (p) => {
+      const texto = `${p.descripcion || ''} ${p.clave || ''} ${p.marca || ''} ${p.descripcionFamilia || ''}`.toUpperCase();
+      return palabras.every(palabra => texto.includes(palabra));
+    };
+
+    let encontrados = productos.filter(coincide);
+
+    // Ordena poniendo primero los que empiezan con el término buscado
+    encontrados.sort((a, b) => {
+      const da = (a.descripcion || '').toUpperCase();
+      const db = (b.descripcion || '').toUpperCase();
+      const aEmpieza = da.startsWith(buscaEn) ? 0 : 1;
+      const bEmpieza = db.startsWith(buscaEn) ? 0 : 1;
+      if (aEmpieza !== bEmpieza) return aEmpieza - bEmpieza;
+      return da.localeCompare(db);
+    });
+
+    const total = encontrados.length;
+    encontrados = encontrados.slice(0, MAX_RESULTADOS).map(p => ({
+      codigo: p.codigo,
+      clave: p.clave,
+      descripcion: p.descripcion,
+      marca: p.marca,
+      precioMenudeo: p.precios?.menudeoConIva ?? null,
+      imagen: imagenDe(p)
+    }));
+
+    if (encontrados.length === 0) {
+      return res.status(404).json({
+        error: 'No se encontró ningún producto con ese código, clave o nombre'
+      });
+    }
+
+    return res.status(200).json({
+      tipo: 'lista',
+      total,
+      mostrando: encontrados.length,
+      resultados: encontrados
     });
 
   } catch (error) {
