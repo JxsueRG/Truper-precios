@@ -164,6 +164,7 @@ export default function Home() {
   };
 
   const p = producto?.precios || {};
+  const c = producto?.caracteristicas || {};
 
   return (
     <div className="container">
@@ -271,10 +272,6 @@ export default function Home() {
                   <span className="label">Menudeo / Público c/IVA</span>
                   <span className="value">{fmt(p.menudeoConIva)}</span>
                 </div>
-                <div className="precioItem destacado">
-                  <span className="label">Público c/IVA</span>
-                  <span className="value">{fmt(p.publicoConIva)}</span>
-                </div>
                 <div className="precioItem calculado">
                   <span className="label">Distribuidor c/IVA +30%</span>
                   <span className="value">{fmt(p.distribuidorConIva30)}</span>
@@ -282,6 +279,33 @@ export default function Home() {
                 <div className="precioItem calculado">
                   <span className="label">Distribuidor c/IVA +40%</span>
                   <span className="value">{fmt(p.distribuidorConIva40)}</span>
+                </div>
+              </div>
+
+              <div className="detalles" style={{ marginTop: '10px' }}>
+                <div className="detalleItem">
+                  <span className="label">Unidad</span>
+                  <span className="value">{c.unidad || '—'}</span>
+                </div>
+                <div className="detalleItem">
+                  <span className="label">Piezas por caja</span>
+                  <span className="value">{c.piezasPorCaja ?? '—'}</span>
+                </div>
+                <div className="detalleItem">
+                  <span className="label">Piezas por master</span>
+                  <span className="value">{c.piezasPorMaster ?? '—'}</span>
+                </div>
+                <div className="detalleItem">
+                  <span className="label">Peso</span>
+                  <span className="value">{c.pesoKg != null ? `${c.pesoKg} kg` : '—'}</span>
+                </div>
+                <div className="detalleItem">
+                  <span className="label">Volumen</span>
+                  <span className="value">{c.volumenCm3 != null ? `${c.volumenCm3} cm³` : '—'}</span>
+                </div>
+                <div className="detalleItem">
+                  <span className="label">Código de barras</span>
+                  <span className="value">{producto.ean || '—'}</span>
                 </div>
               </div>
 
