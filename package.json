@@ -1,15 +1,7 @@
 {
-  "name": "ferreteria-truper",
+  "name": "moto-tapia",
   "version": "1.0.0",
-  "description": "Buscador de precios Truper 2026 para ferretería",
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
-  },
-  "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
-  }
+  "private": true,
+  "description": "Recepción digital de motocicletas - MOTO TAPIA",
+  "dependencies": { "@neondatabase/serverless": "^0.10.4" }
 }
